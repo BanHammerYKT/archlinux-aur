@@ -29,7 +29,7 @@ on:
 
 jobs:
   metadata:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       matrix: ${{ steps.generate-matrix.outputs.matrix }}
     steps:
@@ -47,7 +47,7 @@ jobs:
 
   build_packages:
     needs: metadata
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     container:
       image: archlinux:base-devel
     continue-on-error: true
@@ -125,7 +125,7 @@ jobs:
 
   build_repo:
     needs: build_packages
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     container:
       image: archlinux:base-devel
     steps:

@@ -1,0 +1,120 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+
+  "extends": [
+    "config:base",
+    ":disableDependencyDashboard",
+    ":disableRateLimiting",
+    ":separateMultipleMajorReleases",
+    ":separatePatchReleases",
+    ":semanticCommits",
+  ],
+
+  "platform": "github",
+  "onboarding": false,
+  "enabled": true,
+  "requireConfig": "ignored",
+  "suppressNotifications": ["prIgnoreNotification"],
+  "commitBodyTable": true,
+  "rebaseWhen": "conflicted",
+  
+  "git-submodules": {
+    // Git Submodules functionality is currently in beta testing, must opt-in
+    "enabled": true
+  },
+
+  "regexManagers": [
+    {
+      "fileMatch": ["(^|/)PKGBUILD$"],
+      "matchStrings": [
+        "pkgver=(?<currentValue>.*) # renovate: datasource=(?<datasource>.*) depName=(?<depName>.*)"
+      ],
+      "extractVersionTemplate": "^v?(?<version>.*)$"
+    }
+  ],
+  
+  "packageRules": [
+    {
+      description: "Automerge submodule digest update",
+      matchManagers: ["git-submodules"],
+      matchDatasources: ["git-refs"],
+      enabled: true,
+      automerge: true,
+      ignoreTests: true,
+      automergeType: "branch",
+    },
+
+    {
+      description: "Automerge custom PKGBUILD pkgver update",
+      matchDatasources: ["github-tags"],
+      automerge: true,
+      ignoreTests: true,
+      automergeType: "branch",
+    },
+
+    {
+      description: "Constrain aws-cli-v2-bin to v2.x.y",
+      matchDatasources: ["github-tags"],
+      matchPaths: ["/aws-cli-v2-bin"],
+      matchCurrentVersion: ">=2.0.0",
+    },
+
+    {
+      description: "Auto merge github-actions",
+      matchManagers: ["github-actions"],
+      automerge: true,
+      automergeType: "branch",
+      matchUpdateTypes: ["minor", "patch", "digest"],
+      ignoreTests: true,
+    },
+    
+    {
+      description: "Auto merge github-releases from GH actions",
+      matchDatasources: ["github-tags", "github-releases"],
+      matchPaths: [".github/workflows/**"],
+      automerge: true,
+      automergeType: "branch",
+      matchUpdateTypes: ["minor", "patch", "digest"],
+      ignoreTests: true,
+    },
+
+    {
+      "matchUpdateTypes": ["major"],
+      "semanticCommitType": "feat",
+      "commitMessagePrefix": "{{semanticCommitType}}({{semanticCommitScope}})!:"
+    },
+    {
+      "matchUpdateTypes": ["minor"],
+      "semanticCommitType": "feat"
+    },
+    {
+      "matchUpdateTypes": ["patch"],
+      "semanticCommitType": "fix"
+    },
+    {
+      "matchUpdateTypes": ["digest"],
+      "semanticCommitType": "chore"
+    },
+    {
+      "matchDatasources": ["docker"],
+      "semanticCommitScope": "docker-image"
+    },
+    {
+      "matchDatasources": ["helm"],
+      "semanticCommitScope": "helm-chart"
+    },
+    {
+      "matchDatasources": ["terraform-provider"],
+      "semanticCommitScope": "terraform-provider"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "semanticCommitType": "ci",
+      "semanticCommitScope": "github-action"
+    },
+    {
+      "matchDatasources": ["github-releases", "github-tags"],
+      "semanticCommitScope": "github-release"
+    }
+  ],
+}

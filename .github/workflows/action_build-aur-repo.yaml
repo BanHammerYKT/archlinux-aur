@@ -1,0 +1,208 @@
+name: Run - Build Repo
+
+on:
+  workflow_call:
+    inputs:
+      parallel-build:
+        description: "Number of maximum simultaneous packages build"
+        default: 4
+        required: false
+        type: number
+      artifacts-retention:
+        description: "Number of artifacts retention days"
+        default: 1
+        required: false
+        type: number
+    secrets:
+      app_id:
+        description: "App ID of the application used to generate a token"
+        required: true
+      app_private_key:
+        description: "Private key of the application used to generate a token"
+        required: true
+      gist_token:
+        description: "User Token for custom badges creation"
+        required: true
+      gpg_private_key:
+        description: "Private key to sign packages and custom repo"
+        required: true
+
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.generate-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@cbb722410c2e876e24abbe8de2cc27693e501dcb
+        with:
+          submodules: true
+      - name: Generate Matrix
+        id: generate-matrix
+        run: |
+          sudo apt-get install jq
+          MATRIX_JSON=`find * -type f -name "PKGBUILD" -printf "%h\n" | jq -Rnc '."package" |= [inputs]'`
+          echo ${MATRIX_JSON}
+          echo "matrix=${MATRIX_JSON}" >> $GITHUB_OUTPUT
+
+  build_packages:
+    needs: metadata
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+    continue-on-error: true
+    strategy:
+      max-parallel: ${{ inputs.parallel-build }}
+      matrix: ${{ fromJson(needs.metadata.outputs.matrix) }}
+      fail-fast: false
+
+    steps:
+      - name: Install required binaries
+        run: |
+          # Prepare Job REPO_FOLDER env var
+          # * https://github.com/actions/runner/issues/2058
+          echo "REPO_FOLDER=$GITHUB_WORKSPACE/repo/x86_64" >> $GITHUB_ENV
+          # * Add required default packages
+          pacman -Syyu --noconfirm --needed --ignore filesystem git gnupg
+      - name: Checkout
+        uses: actions/checkout@cbb722410c2e876e24abbe8de2cc27693e501dcb
+        with:
+          submodules: true
+
+      - name: Setup environment
+        env:
+          GPG_SIGNING_KEY: ${{ secrets.gpg_private_key }}
+        run: |
+          # Edit makepkg.conf file : disable debug packages
+          sed -i 's#\(^OPTIONS.*\)\(debug\)\(.*\)#\1!\2\3#' /etc/makepkg.conf
+          # * makepkg cannot (and should not) be run as root
+          useradd -m builder
+          # * Allow builder to run as root (to install packages/deps)
+          echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
+          # * Setup GPG key for repo signing
+          echo -n "$GPG_SIGNING_KEY" | base64 --decode | sudo -u builder gpg --batch --import
+          # * Prepare folder repository folder
+          mkdir -p ${REPO_FOLDER}
+          chown -R builder:builder ./
+
+      - name: Install yay
+        working-directory: /tmp
+        run: |
+          # * Install yay to install dependencies hosted in the AUR.
+          sudo -u builder git clone https://aur.archlinux.org/yay.git
+          cd yay/
+          sudo -u builder makepkg -si --noconfirm --needed
+          sudo -u builder yay --version
+
+      - name: Build ${{ matrix.package }}
+        working-directory: ./${{ matrix.package }}
+        run: |
+          # * Install package dependencies
+          sudo -u builder yay -Sy --noconfirm \
+            $(pacman --deptest \
+              $(source ./PKGBUILD &&\
+              echo ${depends[@]} ${checkdepends[@]} ${makedepends[@]}))
+          # * Verify source checksum
+          sudo -u builder makepkg -g >> ./PKGBUILD
+          # * tor-browser condition
+          [[ ${{ matrix.package }} == "tor-browser" ]] && \
+            sudo -u builder \
+             gpg --auto-key-locate nodefault,wkd --locate-keys torbrowser@torproject.org
+          # * Build package
+          sudo -u builder PKGDEST=${REPO_FOLDER} makepkg -f --sign
+
+      - name: Workaround '{upload/download}-artifact' #limitation on name for epoch https://github.com/actions/upload-artifact/issues/22#issuecomment-568561966
+        run: |
+          # || [ "$?" = "4" ] // I do not want to exit if nothing was renamed
+          rename ':' '.' ${REPO_FOLDER}/*.pkg.tar.* || [ "$?" == "4" ]
+
+      - name: Save package
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.package }}
+          path: ${{ env.REPO_FOLDER }}/
+          retention-days: ${{ inputs.artifacts-retention }}
+
+  build_repo:
+    needs: build_packages
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+    steps:
+      - name: Restore packages
+        id: restore
+        uses: actions/download-artifact@v4
+        with:
+          pattern: package-*
+          merge-multiple: true
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.gpg_private_key }}
+      - name: Create repo DB
+        run: |
+          # * Fix Openssl 3 issue with node.
+          # * https://github.com/tibdex/github-app-token/issues/54
+          sed -i 's/^providers = provider_sect/#&/' /etc/ssl/openssl.cnf
+          # * Build Repo
+          repo-add --sign $(basename $PWD).db.tar.gz ./*.pkg.tar.zst
+          # * Delete DB files symlink
+          find . -type l -delete
+          # * Rename compressed DB
+          rename -- .tar.gz '' *.tar.gz
+          rename -- .tar.gz.sig '.sig' *.tar.gz.sig
+      - name: Generate Token
+        uses: tibdex/github-app-token@v2
+        id: generate-token
+        with:
+          app_id: ${{ secrets.app_id }}
+          private_key: ${{ secrets.app_private_key }}
+      - name: "Get current date"
+        run: |
+          echo "builddate=$(date +'%Y.%m.%d')" >> $GITHUB_OUTPUT
+        id: date
+      - name: Create release and upload artifacts
+        id: upload-artifacts
+        continue-on-error: true
+        uses: ncipollo/release-action@v1
+        with:
+          token: "${{ steps.generate-token.outputs.token }}"
+          artifactErrorsFailBuild: true
+          removeArtifacts: true
+          allowUpdates: true
+          generateReleaseNotes: true
+          tag: x86_64
+          name: ${{ steps.date.outputs.builddate }}
+          artifacts: "./*"
+          body: |
+            Archlinux x86_64 repo packages
+      - name: Create release and upload artifacts - Retry
+        if: steps.upload-artifacts.outcome == 'failure'
+        uses: ncipollo/release-action@v1
+        with:
+          token: "${{ steps.generate-token.outputs.token }}"
+          artifactErrorsFailBuild: true
+          removeArtifacts: true
+          allowUpdates: true
+          generateReleaseNotes: true
+          tag: x86_64
+          name: ${{ steps.date.outputs.builddate }}
+          artifacts: "./*"
+          body: |
+            Archlinux x86_64 repo packages
+
+      - name: Count the Arch Packages
+        run: |
+          echo "COUNT=$(find ./* -type f -name '*.pkg.tar.zst' | wc -l)" >> $GITHUB_ENV
+      - name: Create the Count Badge
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.gist_token }}
+          gistID: 9f6f202c19a6cacada23e9021fb78d01
+          filename: count-arch-packages.json
+          style: for-the-badge
+          namedLogo: Files
+          logoColor: white
+          label: Packages count
+          message: ${{ env.COUNT }}
+          color: blue

@@ -1,0 +1,24 @@
+name: Build Repo
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "35 2 * * *"
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/run-build-repo.yaml"
+
+jobs:
+  full_build:
+    name: Build Repo
+    uses: ./.github/workflows/action_build-aur-repo.yaml
+    with:
+      parallel-build: 6
+      artifacts-retention: 1
+    secrets:
+      app_id: ${{ secrets.ZAGGBOT_APP_ID }}
+      app_private_key: ${{ secrets.ZAGGBOT_APP_PRIVATE_KEY }}
+      gist_token: ${{ secrets.GIST_TOKEN }}
+      gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}

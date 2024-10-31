@@ -1,0 +1,7 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  username: "banhammer-bot[bot]",
+  gitAuthor: "banhammer-bot <1042222+banhammer-bot[bot]@users.noreply.github.com>",
+  repositories: ["banhammerykt/archlinux-aur"],
+  dependencyDashboard: false
+}

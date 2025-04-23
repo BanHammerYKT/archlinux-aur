@@ -1,5 +1,5 @@
-[submodule "yandex-beta"]
-	path = yandex-beta
+[submodule "yandex-browser-beta"]
+	path = yandex-browser-beta
 	url = https://github.com/BanHammerYKT/aur-yandex-beta.git
 [submodule "cursor-bin"]
 	path = cursor-bin

@@ -4,3 +4,6 @@
 [submodule "cursor-bin"]
 	path = cursor-bin
 	url = https://aur.archlinux.org/cursor-bin.git
+[submodule "oh-my-posh"]
+	path = oh-my-posh
+	url = https://aur.archlinux.org/oh-my-posh.git

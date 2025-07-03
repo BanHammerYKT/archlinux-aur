@@ -7,3 +7,6 @@
 [submodule "oh-my-posh"]
 	path = oh-my-posh
 	url = https://aur.archlinux.org/oh-my-posh.git
+[submodule "aya"]
+	path = aya
+	url = https://github.com/BanHammerYKT/aur-aya.git

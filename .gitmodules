@@ -10,3 +10,6 @@
 [submodule "aya"]
 	path = aya
 	url = https://github.com/BanHammerYKT/aur-aya.git
+[submodule "anythingllm-appimage"]
+	path = anythingllm-appimage
+	url = https://github.com/BanHammerYKT/aur-anythingllm-appimage.git

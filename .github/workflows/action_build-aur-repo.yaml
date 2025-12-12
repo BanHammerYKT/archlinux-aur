@@ -117,7 +117,7 @@ jobs:
           rename ':' '.' ${REPO_FOLDER}/*.pkg.tar.* || [ "$?" == "4" ]
 
       - name: Save package
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: package-${{ matrix.package }}
           path: ${{ env.REPO_FOLDER }}/

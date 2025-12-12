@@ -131,7 +131,7 @@ jobs:
     steps:
       - name: Restore packages
         id: restore
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: package-*
           merge-multiple: true

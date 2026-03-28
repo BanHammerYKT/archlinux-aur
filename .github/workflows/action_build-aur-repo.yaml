@@ -195,7 +195,7 @@ jobs:
         run: |
           echo "COUNT=$(find ./* -type f -name '*.pkg.tar.zst' | wc -l)" >> $GITHUB_ENV
       - name: Create the Count Badge
-        uses: schneegans/dynamic-badges-action@v1.7.0
+        uses: schneegans/dynamic-badges-action@v1.8.0
         with:
           auth: ${{ secrets.gist_token }}
           gistID: 9f6f202c19a6cacada23e9021fb78d01

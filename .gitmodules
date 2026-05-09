@@ -10,3 +10,6 @@
 [submodule "aya"]
 	path = aya
 	url = https://github.com/BanHammerYKT/aur-aya.git
+[submodule "holo-bin"]
+	path = holo-bin
+	url = https://github.com/BanHammerYKT/aur-holo-bin.git

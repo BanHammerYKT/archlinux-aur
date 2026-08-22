@@ -13,3 +13,6 @@
 [submodule "holo-bin"]
 	path = holo-bin
 	url = https://github.com/BanHammerYKT/aur-holo-bin.git
+[submodule "unissh-appimage"]
+	path = unissh-appimage
+	url = https://github.com/BanHammerYKT/aur-unissh-appimage.git

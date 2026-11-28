@@ -16,3 +16,6 @@
 [submodule "adb-plus"]
 	path = adb-plus
 	url = https://github.com/BanHammerYKT/aur-adb-plus.git
+[submodule "stream-tube-desktop-appimage"]
+	path = stream-tube-desktop-appimage
+	url = https://github.com/BanHammerYKT/aur-stream-tube-desktop-appimage.git
